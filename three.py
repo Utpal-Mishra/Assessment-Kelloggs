@@ -1,25 +1,42 @@
+# FOR ORGANIZING DATA
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+from tqdm import tqdm
+import sys
 import streamlit as st
 import time
 
-import sys
-import numpy as np
-import pandas as pd
-
-from datetime import datetime as dt
-from datetime import timedelta
-
+# FOR PLOTTING
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import pandas_profiling as pp
 
-from streamlit_metrics import metric, metric_row
+# FOR MODELING
+from sklearn.preprocessing import MinMaxScaler
+import pickle
+from sklearn.model_selection import train_test_split, GridSearchCV, TimeSeriesSplit , RandomizedSearchCV
 
-print('Folium Installed')
-print('Libraries Imported')
+from optuna.integration import lightgbm as lgb_tuner
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import Ridge
+
+# FOR FORECASTING
+from pmdarima import auto_arima
+# Fit a SARIMAX(0, 1, 1) on the training set
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+# Load specific evaluation tools
+from sklearn.metrics import mean_squared_error
+from statsmodels.tools.eval_measures import rmse
+  
+# Ignore harmless warnings
+import warnings
+warnings.filterwarnings("ignore")
+
+print('Libraries imported.')
 
 sys.setrecursionlimit(100000)
 #print("Installed Dependencies")
@@ -27,9 +44,9 @@ sys.setrecursionlimit(100000)
 ###########################################################################
 
 def app():
-    st.title("TRAIN DELAY ANALYSIS IN BELGIUM")
+    st.title("KELLOGGS ASSESSMENT 2023")
     
-    # st.header("PART 3")
+    # st.header("PART 1")
     
     st.subheader("Loading Page....")
     
@@ -44,83 +61,113 @@ def app():
     
     ".... and now we're done!!!"
     
-    # Air Transport
-    path = 'Data_raw_punctuality_202301.csv'
-    data = pd.read_csv(path)
-    st.write('Train Delay Data')
-    st.dataframe(data.head(10))
-    st.write("Data Shape: {}\n".format(data.shape))
-    
-    
-    ###########################################################################
-    
-    # data.info()
-    # data.isnull().sum()
-    st.header("Exploratory Data Analysis")
+    # Product Data
+    path = 'product.csv'
+    products = pd.read_csv(path)
+ 
+    # Stores Data
+    path = 'stores.csv'
+    stores = pd.read_csv(path)
+ 
+    # Customers Data
+    path = 'customer_supplement.csv'
+    customers = pd.read_csv(path)
 
-    st.write("Dropping Redundant Feature Variables: ['RELATION_DIRECTION', 'REAL_TIME_ARR', 'LINE_NO_DEP', 'LINE_NO_ARR']")
-    # data.drop(columns = ['LINE_NO_DEP', 'LINE_NO_ARR'], axis=1, inplace=True)
-    data.dropna(subset = ['RELATION_DIRECTION', 'REAL_TIME_ARR', 'LINE_NO_DEP', 'LINE_NO_ARR'], inplace = True)
-    st.dataframe(data.head())
+    # Sales Data    
+    path = 'sales.csv'
+    sales = pd.read_csv(path)
 
-    st.subheader("Checking Null Values")
-    st.dataframe(data.isnull().sum())
-    st.write('Total Null Values: {}'.format(data.isnull().sum().sum()))
+    # Merging Data
+    data = sales.merge(customers, 
+                   on='customer_id', how='left').merge(products, 
+                                                       on='product_id', how='left').merge(stores, 
+                                                                                          on='store_id', how='left')
+    data['date'] = pd.to_datetime(dict(year=2023, month=data.month, day=1))
+    data['revenue'] = data.units_purchased*data.net_spend
 
-    st.subheader("Formating Date and Time Entries")
-    #
-    data.REAL_TIME_ARR    = pd.to_datetime(data.REAL_TIME_ARR, format = '%H:%M:%S').dt.time
-    data.REAL_TIME_DEP    = pd.to_datetime(data.REAL_TIME_DEP, format = '%H:%M:%S').dt.time
-    data.PLANNED_TIME_ARR = pd.to_datetime(data.PLANNED_TIME_ARR, format = '%H:%M:%S').dt.time
-    data.PLANNED_TIME_DEP = pd.to_datetime(data.PLANNED_TIME_DEP, format = '%H:%M:%S').dt.time
+    ##########################################################################################################################
 
-    #
-    data.DATDEP           = pd.to_datetime(data.DATDEP, format = '%d%b%Y')
-    data.PLANNED_DATE_ARR = pd.to_datetime(data.PLANNED_DATE_ARR, format = '%d%b%Y')
-    data.PLANNED_DATE_DEP = pd.to_datetime(data.PLANNED_DATE_DEP, format = '%d%b%Y')
-    data.REAL_DATE_ARR    = pd.to_datetime(data.REAL_DATE_ARR, format = '%d%b%Y')
-    data.REAL_DATE_DEP    = pd.to_datetime(data.REAL_DATE_DEP, format = '%d%b%Y')
+    X = data[['K_flag', 'customer_id', 'product_id', 'month', 'units_purchased', 'volume_purchased', 'units_purchased_on_promo']]
+    Y = data['net_spend']
 
-    #
-    data.TRAIN_NO   = pd.Categorical(data.TRAIN_NO)
-    data.RELATION   = pd.Categorical(data.RELATION)
-    data.TRAIN_SERV = pd.Categorical(data.TRAIN_SERV)
+    st.write('')
+    st.write('')
+    # Normalize Dataset
+    scaler = MinMaxScaler()
 
-    st.dataframe(data.tail())
+    for col in tqdm(X.columns[5:]):
+        X[col] = scaler.fit_transform(X[col].values.reshape(-1, 1))
 
-    # st.write('Total No.of Trains: {}'.format(len(data.TRAIN_NO.unique())))
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.1, random_state = 123)
+    st.write('X_train: {}\nX_test : {}\nY_train: {}\nY_test : {}'.format(X_train.shape, X_test.shape, Y_train.shape, Y_test.shape))
 
-    ###########################################################################
+    X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size = 0.2, random_state = 123)
+    st.write('X_train: {}\nX_val  : {}\nY_train: {}\nY_val  : {}'.format(X_train.shape, X_val.shape, Y_train.shape, Y_val.shape))
 
-    st.header("Visualising Data")
+    # LASSO REGRESSION
+    st.write('')
+    st.write('')
+    st.subheader('LASSO REGRESSION')
+    alpha = [10**i for i in range(-5, 2)]
 
-    st.write('TRAIN DELAYS in ARRIVAL   : {} Seconds :: {} Hours'.format(round(data.groupby('DATDEP')['DELAY_ARR'].mean().sum(), 3), str(timedelta(seconds=data.groupby('DATDEP')['DELAY_ARR'].mean().sum()))))
-    st.write('TRAIN DELAYS in DEPARTURE : {} Seconds :: {} Hours'.format(round(data.groupby('DATDEP')['DELAY_DEP'].mean().sum(), 3), str(timedelta(seconds=data.groupby('DATDEP')['DELAY_DEP'].mean().sum()))))
-
-    delayARR = pd.DataFrame(data.groupby('DATDEP')['DELAY_ARR'].mean()).reset_index()
-    st.subheader("Delay Data")
-    st.write("Based on Group By Departure Date alongwith Delay in Arrival")
-    st.dataframe(delayARR)
-
-    st.subheader('Ddelay in Train Arrivals')
-    fig = px.bar(delayARR, x = delayARR.DATDEP, y = delayARR.DELAY_ARR, color = delayARR.DELAY_ARR)
-    fig.update_xaxes(rangeslider_visible=False, showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_yaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_layout(height=500, width=1200, xaxis_title="Date", yaxis_title="Train Delay (in Seconds)", title_text="DELAYS IN TRAIN ARRIVAL") 
-    # fig.show()
-    st.plotly_chart(fig)
-
-    delayDEP = pd.DataFrame(data.groupby('DATDEP')['DELAY_DEP'].mean()).reset_index()
-
-    st.subheader('Delay in Train Departures')
-    fig = px.bar(delayDEP, x = delayDEP.DATDEP, y = delayDEP.DELAY_DEP, color = delayDEP.DELAY_DEP)
-    fig.update_xaxes(rangeslider_visible=False, showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_yaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_layout(height=500, width=1200, xaxis_title="Date", yaxis_title="Train Delay (in Seconds)", title_text="DELAYS IN TRAIN DEPARTURE") 
-    # fig.show()
-    st.plotly_chart(fig)
+    train_score = []
+    val_score = []
+    for i in tqdm(alpha):
         
-    st.write('Average Time Delay')
-    st.dataframe(pd.DataFrame(data.groupby('DATDEP')['DELAY_ARR'].mean()).reset_index())
+        print("alpha = {} ".format(i))
+        _model = Lasso(alpha= i)
+        _model.fit(X_train, Y_train)
+        rmse_train = mean_squared_error(_model.predict(X_train).clip(0,20), Y_train, squared=False)
+        rmse_val = mean_squared_error(_model.predict(X_val).clip(0,20), Y_val, squared=False)
 
-    st.write('[Notebook](https://github.com/Utpal-Mishra/Omdena-Berlin-Chapter-2023/blob/main/OmdenaBerlinChapter2023Part3.ipynb)')
+        train_score.append(rmse_train)
+        val_score.append(rmse_val)
+        print("Training Loss: {} ".format(rmse_train))
+        print("Validation Loss: {} ".format(rmse_val))
+        print("-"*50)
+
+    params = [str(i) for i in alpha]
+    fig, ax = plt.subplots(figsize = (20, 7))
+    ax.plot(params, val_score, c='g')
+    for i, txt in enumerate(np.round(val_score,3)):
+        ax.annotate((params[i],np.round(txt,3)), (params[i],val_score[i]))
+
+    plt.grid()
+    plt.title("Cross Validation RMSE for Para Grid")
+    plt.xlabel("(Subsample , Cosample_bytree)")
+    plt.ylabel("Error Measure")
+    st.plotly_charts(ax)
+
+    # RIDGE REGRESSION
+    st.write('')
+    st.write('')
+    st.subheader('RIDGE REGRESSION')
+    alpha = [10**i for i in range(-5, 5)]
+
+    train_score = []
+    val_score = []
+    for i in tqdm(alpha):
+        
+        print("alpha = {} ".format(i))
+        _model = Ridge(alpha= i)
+        _model.fit(X_train, Y_train)
+        rmse_train = mean_squared_error(_model.predict(X_train).clip(0,20), Y_train, squared=False)
+        rmse_val = mean_squared_error(_model.predict(X_val).clip(0,20), Y_val, squared=False)
+
+        train_score.append(rmse_train)
+        val_score.append(rmse_val)
+        print("Training Loss: {} ".format(rmse_train))
+        print("Validation Loss: {} ".format(rmse_val))
+        print("-"*50)
+
+    params = [str(i) for i in alpha]
+    fig, ax = plt.subplots(figsize = (20, 7))
+    ax.plot(params, val_score, c='g')
+    for i, txt in enumerate(np.round(val_score,3)):
+        ax.annotate((params[i],np.round(txt,3)), (params[i],val_score[i]))
+
+    plt.grid()
+    plt.title("Cross Validation RMSE for Para Grid")
+    plt.xlabel("(Subsample , Cosample_bytree)")
+    plt.ylabel("Error Measure")
+    plt.show()
