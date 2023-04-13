@@ -142,7 +142,7 @@ def app():
     plt.title("Cross Validation RMSE for Para Grid")
     plt.xlabel("(Subsample , Cosample_bytree)")
     plt.ylabel("Error Measure")
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig)
 
     ##########################################################################################################################
 
@@ -182,6 +182,6 @@ def app():
     plt.xlabel("(Subsample , Cosample_bytree)")
     plt.ylabel("Error Measure")
     plt.show()
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig)
 
     ##########################################################################################################################

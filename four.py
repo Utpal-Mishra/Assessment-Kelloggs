@@ -87,7 +87,7 @@ def app():
     data['revenue'] = data.units_purchased*data.net_spend
 
     st.subheader('Data')
-    st.dataframe(data.tail())
+    st.dataframe(data.tail(10))
 
     ##########################################################################################################################
 
@@ -152,14 +152,14 @@ def app():
 
     FinalData = pd.DataFrame({'Product ID': PRODUCTID, 'RMSE': RMSE, 'MSE': MSE,'Forecast':FORECAST})
     FinalData.sort_values('Product ID', inplace = True)
-    st.subheader('Result Data')
-    st.dataframe(FinalData.head(10))
+    # st.subheader('Result Data')
+    # st.dataframe(FinalData.head())
 
     forecast = pd.DataFrame({'Product ID': PRODUCTID, 'Forecast':FORECAST})
     forecast.Forecast = forecast.Forecast.apply(lambda x: x.mean())
     forecast.sort_values('Forecast', inplace = True)
     st.subheader('Forecast Data')
-    st.dataframe(forecast.head(10))
+    st.dataframe(forecast.head())
 
     # pp.ProfileReport(forecast)
 
