@@ -104,6 +104,8 @@ def app():
     X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size = 0.2, random_state = 123)
     st.write('X_train: {}\nX_val  : {}\nY_train: {}\nY_val  : {}'.format(X_train.shape, X_val.shape, Y_train.shape, Y_val.shape))
 
+    ##########################################################################################################################
+
     # LASSO REGRESSION
     st.write('')
     st.write('')
@@ -125,9 +127,13 @@ def app():
         print("Training Loss: {} ".format(rmse_train))
         print("Validation Loss: {} ".format(rmse_val))
         print("-"*50)
+    
+    st.write("Training Loss: {} ".format(rmse_train))
+    st.write("Validation Loss: {} ".format(rmse_val))
+
 
     params = [str(i) for i in alpha]
-    fig, ax = plt.subplots(figsize = (20, 7))
+    fig, ax = plt.subplots(figsize = (30, 10))
     ax.plot(params, val_score, c='g')
     for i, txt in enumerate(np.round(val_score,3)):
         ax.annotate((params[i],np.round(txt,3)), (params[i],val_score[i]))
@@ -136,7 +142,9 @@ def app():
     plt.title("Cross Validation RMSE for Para Grid")
     plt.xlabel("(Subsample , Cosample_bytree)")
     plt.ylabel("Error Measure")
-    st.plotly_charts(ax)
+    st.pyplot(fig, use_container_width=True)
+
+    ##########################################################################################################################
 
     # RIDGE REGRESSION
     st.write('')
@@ -160,8 +168,11 @@ def app():
         print("Validation Loss: {} ".format(rmse_val))
         print("-"*50)
 
+    st.write("Training Loss: {} ".format(rmse_train))
+    st.write("Validation Loss: {} ".format(rmse_val))
+
     params = [str(i) for i in alpha]
-    fig, ax = plt.subplots(figsize = (20, 7))
+    fig, ax = plt.subplots(figsize = (30, 10))
     ax.plot(params, val_score, c='g')
     for i, txt in enumerate(np.round(val_score,3)):
         ax.annotate((params[i],np.round(txt,3)), (params[i],val_score[i]))
@@ -171,3 +182,6 @@ def app():
     plt.xlabel("(Subsample , Cosample_bytree)")
     plt.ylabel("Error Measure")
     plt.show()
+    st.pyplot(fig, use_container_width=True)
+
+    ##########################################################################################################################

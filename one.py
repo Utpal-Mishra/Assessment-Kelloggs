@@ -127,12 +127,11 @@ def app():
 
     st.title('ABOUT DATA')
     st.subheader('Data Description')
-    st.write("We have Records from Date {} to {}".format(data.date.min().date(), data.date.max().date()))
-    st.write('')
-    st.dataframe(sales.describe())
 
+    st.write('')
+    st.write("We have Records from Date {} to {}".format(data.date.min().date(), data.date.max().date()))
     st.write("Number of Duplicates: {}".format(len(data[data.duplicated()])))
     st.write('')
-    st.write('')
+    st.dataframe(sales.describe())
 
     ##########################################################################################################################
